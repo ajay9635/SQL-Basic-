@@ -1,0 +1,132 @@
+-- Basic Select Queries:
+-- Query 1 : Retrieve all records from the table:
+
+SELECT *
+FROM spotifyxl ;
+
+-- Query 2 : Select specific columns
+
+SELECT track_name, streams
+FROM spotifyxl ;
+
+-- Filtering with WHERE Clause 
+-- Query 3 Retrieve records where the artist is 'Taylor Swift'
+
+SELECT * 
+FROM spotifyxl
+WHERE artists = 'Taylor Swift';
+
+-- Query 4 Retrieve records where the release year is greater than 2020
+
+SELECT *
+FROM spotifyxl
+WHERE released_year > 2020 ;
+
+-- Aggregate Functions with GROUP BY:
+-- Query 5 Get the count of songs per artist:
+
+SELECT artists, COUNT(*) AS song_count 
+FROM spotifyxl 
+GROUP BY artists ;
+
+-- Query 6 Retrive the average streams year wise
+
+SELECT released_year, 
+AVG(streams) AS avg_no_streams
+FROM spotifyxl
+GROUP BY released_year;
+
+--  Subqueries:
+-- Query 7 Find artists who have more than average streams:
+
+SELECT DISTINCT artists 
+FROM spotifyxl 
+WHERE streams > (SELECT AVG(streams) FROM spotifyxl);
+
+-- Having
+-- Query 8 Retrive average number of streams for tracks released in each year, and only display those years where the average number of streams is greater than 100 million.
+
+SELECT released_year, 
+AVG(streams) AS avg_no_streams
+FROM spotifyxl
+GROUP BY released_year
+HAVING AVG(streams) > 1500000000;
+
+-- Aggregation and Filtering
+-- Query 9 Retrive average dancebility percentage for tracks in Spotify playlists, but only for tracks with more than 1000 streams.
+
+SELECT AVG(`danceability_%`) AS avg_danceability
+FROM spotifyxl
+WHERE in_spotify_playlists = 1
+AND streams > 100;
+
+-- CTE(Common Table Expression)
+-- Query 10 Find artists whose streams in top 10
+
+WITH cte AS (SELECT artists, streams 
+FROM spotifyxl
+ORDER BY streams DESC
+LIMIT 10) 
+SELECT DISTINCT artists
+from cte;
+
+-- Query 11 Rank tracks based on the number of streams within each month of the year they were released. Show the top-ranked tracks for each month.
+
+WITH cte AS (SELECT track_name, released_month, streams, 
+RANK() OVER (PARTITION BY released_month ORDER BY streams DESC) AS rank_within_month
+FROM spotifyxl)
+SELECT track_name, released_month,streams,rank_within_month
+FROM cte
+WHERE rank_within_month = 1 ;
+
+ -- Combining Conditions
+  -- Query 12 Find tracks released in 2023, where the number of streams is greater than 50 million, and the track is in either Spotify playlists or charts.
+  
+SELECT *
+FROM spotifyxl
+WHERE released_year = 2023 AND streams > 50000000 AND (in_spotify_playlists != 0 OR in_spotify_charts != 0);
+
+-- Windows Function
+-- Query 13 Rank tracks based on the number of streams within each month of the year they were released.
+
+SELECT track_name, released_month, streams, 
+RANK() OVER (PARTITION BY released_month ORDER BY streams DESC) AS rank_within_month
+FROM spotifyxl;
+
+-- Unions
+/* Query 14: list captures most played songs, no duplicates, from all charts */
+
+(SELECT track_name,streams FROM spotifyxl WHERE in_spotify_charts > 0)
+UNION
+(SELECT track_name,streams FROM spotifyxl WHERE in_apple_charts > 0)
+UNION
+(SELECT track_name,streams FROM spotifyxl WHERE in_deezer_charts > 0)
+UNION
+(SELECT track_name,streams FROM spotifyxl WHERE in_shazam_charts > 0)
+ORDER BY streams DESC
+LIMIT 15 ;
+
+-- Case
+-- Query 15 creating the genere based on the danceability_%	valence_%	energy_%	acousticness_%	instrumentalness_%	liveness_%	speechiness_%
+
+SELECT track_name, artists, streams,
+CASE WHEN `danceability_%` >= 70 AND `valence_%` >= 60 AND `energy_%` >= 70 THEN 'Pop'
+    WHEN `danceability_%` >= 60 AND `valence_%` >= 50 AND `energy_%` >= 60 THEN 'Electronic'
+    WHEN `danceability_%` >= 50 AND `valence_%` >= 40 AND `energy_%` >= 50 THEN 'Rock'
+    WHEN `danceability_%` >= 40 AND `valence_%` >= 30 AND `energy_%` >= 40 THEN 'Indie'
+    WHEN `acousticness_%` >= 60 AND `instrumentalness_%` >= 50 THEN 'Classical'
+    WHEN `danceability_%` >= 50 AND `valence_%` >= 60 AND `energy_%` >= 50 THEN 'Dance'
+    WHEN `danceability_%` >= 40 AND `valence_%` >= 30 AND `energy_%` >= 40 THEN 'Jazz'
+    ELSE 'Other'
+  END AS 'genere'
+  FROM spotifyxl
+  ORDER BY streams DESC
+  LIMIT 10;
+
+-- Date and Concat
+--  Number of songs released month wise
+
+SELECT MONTHNAME(CONCAT(released_year,'-',released_month,'-',released_day)) as 'month_name', COUNT(track_name) AS 'no_of_songs_released'
+FROM spotifyxl
+GROUP BY month_name
+ORDER BY no_of_songs_released DESC ;
